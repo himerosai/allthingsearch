@@ -6,10 +6,15 @@ What tools do you have? I am building just that!
 
 # Overall design
 
-I got this from one of those old research articles:
+Design pre-GPT:
 
 ![diagram](https://github.com/himerosai/allthingsearch/assets/153864679/b2c8049d-661b-41bb-a50d-c00bfbc63ad1)
 
+Design post-GPT:
+
+![image](https://github.com/himerosai/allthingsearch/assets/153864679/f89c445d-68e4-45c3-bb2d-ce7634f0b682)
+
+I will combine both approaches.
 # Dependecies (so far):
 
 Frontend: Gradio
