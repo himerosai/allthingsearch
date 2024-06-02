@@ -25,6 +25,13 @@ Database storage: MiniIO
 
 Agent: Langchain + RAG
 
+Workaround, Poetry is amazingly slow!
+
+```
+poetry export -f requirements.txt > requirements.txt
+python -m pip install -r requirements.txt
+poetry install
+```
 
 Algorithms:
 * 3D-VisTA: https://github.com/3d-vista/3D-VisTA
