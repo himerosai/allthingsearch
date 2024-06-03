@@ -1,7 +1,7 @@
 version: '2.2'
 services:
   esdb:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     container_name: elasticsearch
     environment:
       - cluster.name=docker-cluster
@@ -38,8 +38,6 @@ services:
       - MINIO_ROOT_USER=root
       - MINIO_ROOT_PASSWORD=password
       - MINIO_DEFAULT_BUCKETS=objects
-      - "MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE"
-      - "MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 volumes:
   esdata:
     driver: local

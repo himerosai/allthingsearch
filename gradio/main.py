@@ -80,11 +80,19 @@ def browse_objects(settings):
     df = pd.DataFrame(data)
     return df
 
-def save_settings(es_url,es_user,es_pass,settings_state):
+def save_settings(es_url,es_user,es_pass,minio_url,minio_access,minio_secret,settings_state):
     # try to connect
     settings_state['es_url'] = es_url
     settings_state['es_user'] = es_user
     settings_state['es_pass'] = es_pass
+
+    settings_state['minio_url'] = minio_url
+    settings_state['minio_access'] = minio_access
+    settings_state['minio_secret'] = minio_secret
+
+    with open("config.env","w") as file:
+        for key,val in settings_state.items():
+            file.writeline("{key}={val}".format(key,val))
 
     try:
         es = Elasticsearch(
@@ -140,12 +148,12 @@ with gr.Blocks() as demo:
 
                 with gr.Column(scale=1):
                     minio_url = gr.Textbox(label="Minio url",value="http://localhost:9000")
-                    mini_access = gr.Textbox(label="Minio access key",value="AKIAIOSFODNN7EXAMPLE")
+                    minio_access = gr.Textbox(label="Minio access key",value="AKIAIOSFODNN7EXAMPLE")
                     minio_secret = gr.Textbox(label="Minio secret key",value="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
 
             save_button = gr.Button("Save...")
 
-            save_button.click(fn=save_settings, inputs=[es_url,es_user,es_pass,settings_state],
+            save_button.click(fn=save_settings, inputs=[es_url,es_user,es_pass,minio_url,minio_access,minio_secret,settings_state],
                                 outputs=settings_state)
 
 # Launch the app
