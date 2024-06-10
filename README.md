@@ -52,3 +52,8 @@ Heaviy inspired by:
 
 Follow me on [twitter](https://x.com/HimerosAI)
 
+# Last screenshot
+
+![image](https://github.com/himerosai/allthingsearch/assets/153864679/cf132392-939f-4515-843d-2f16734092f9)
+
+
