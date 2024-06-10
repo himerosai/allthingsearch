@@ -8,6 +8,9 @@ from minio.commonconfig import Tags
 import elasticsearch
 import pathlib
 
+import urllib3
+urllib3.disable_warnings()
+
 random.seed(10)
 
 from dotenv import dotenv_values
@@ -28,7 +31,7 @@ if args.source == "objaverse":
     random_object_uids = random.sample(uids, args.max)
     annotations = objaverse.load_annotations()
 
-    processes = multiprocessing.cpu_count()/2
+    processes = multiprocessing.cpu_count()
 
     print("Using %d processes" % processes)
 

@@ -88,7 +88,8 @@ services:
       - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
       - xpack.security.transport.ssl.verification_mode=certificate
       - xpack.license.self_generated.type=${LICENSE}
-    mem_limit: ${ES_MEM_LIMIT}
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+    #mem_limit: ${ES_MEM_LIMIT}
     ulimits:
       memlock:
         soft: -1
@@ -146,7 +147,31 @@ services:
       - MINIO_ROOT_USER=root
       - MINIO_ROOT_PASSWORD=password
       - MINIO_DEFAULT_BUCKETS=objects
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:9001/minio/index.html || exit 1",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 3
 
+  setupminio:
+    image: docker.io/bitnami/minio:latest
+    depends_on:
+      minio:
+          condition: service_healthy
+    volumes:
+      - 'minio_data:/data'
+    user: "0"
+    command: >
+      bash -c '
+      sleep 5;
+      echo "Setting access keys for ${MINIO_DEFAULT_BUCKETS}";
+      mc admin user svcacct add local ${MINIO_ROOT_USER} --access-key ${MINIO_ACCESS_KEY} --secret-key ${MINIO_SECRET_KEY};
+      echo "All done!";
+            '
 volumes:
   certs:
     driver: local

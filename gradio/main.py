@@ -157,4 +157,4 @@ with gr.Blocks() as demo:
                                 outputs=settings_state)
 
 # Launch the app
-demo.launch()
+demo.launch(share=True)
