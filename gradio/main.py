@@ -7,23 +7,23 @@ import pandas as pd
 
 # Function to handle search queries
 def search_query(query,settings):
-
+    INDEX_NAME = "objaverse"
     # Initialize ElasticSearch client
     es = Elasticsearch([settings['es_url']], verify_certs=False, basic_auth=(settings['es_user'],settings['es_pass']))
-
-    res = es.search(index="3d_objects", body={"query": {"match": {"description": query}}})
+    default_cols = ["uri","uid","name","publishedAt","user","description","license"]
+    res = es.search(index=INDEX_NAME, body={"query": {"match": {"description": query}}})
     hits = res['hits']['hits']
     data = []
     for hit in hits:
         source = hit['_source']
-        data.append({
-            'Image': source['image_url'],
-            'Description': source['description'],
-            'Object ID': source['object_id']
-        })
+
+        sub_obj = { field:source[field] for field in default_cols}
+
+        data.append(sub_obj)
 
     if len(data)==0:
-        df = pd.DataFrame({"Image":[],"Description":[],"OID":[]})
+        empty = { field:[] for field in default_cols}
+        df = pd.DataFrame(empty)
     else:
         df = pd.DataFrame(data)
     return df
@@ -92,7 +92,7 @@ def save_settings(es_url,es_user,es_pass,minio_url,minio_access,minio_secret,set
 
     with open("config.env","w") as file:
         for key,val in settings_state.items():
-            file.writeline("{key}={val}".format(key,val))
+            file.write(f"{key}={val}\n".format(key,val))
 
     try:
         es = Elasticsearch(
@@ -110,9 +110,14 @@ def save_settings(es_url,es_user,es_pass,minio_url,minio_access,minio_secret,set
     return settings_state
 
 
+from dotenv import dotenv_values
+
 # Create Gradio interface
 with gr.Blocks() as demo:
-    settings_state = gr.State({"es_url":None})
+    
+    settings = dotenv_values("config.env")
+    settings_state = gr.State(settings)
+
     with gr.Tabs():
         with gr.TabItem("Search"):
             search_input = gr.Textbox(label="Search Query")
