@@ -120,28 +120,41 @@ with gr.Blocks() as demo:
 
     with gr.Tabs():
         with gr.TabItem("Search"):
-            search_input = gr.Textbox(label="Search Query")
-            search_button = gr.Button("Search")
-            search_results = gr.Dataframe(headers=["name", "age", "gender"],
-            datatype=["str", "number", "str"],
-            row_count=5,
-            col_count=(3, "fixed"),
-                                          interactive=False)
-            search_button.click(fn=search_query, inputs=[search_input,settings_state], outputs=search_results)
+            with gr.Row():
+                with gr.Column(scale=0):
+                    gr.Markdown(
+                    """
+                    Fields:
+                    * A
+                    * B
+                    """)
+                with gr.Column(scale=1):
+                    search_input = gr.Textbox(label="Search Query")
+                    search_button = gr.Button("Search")
+                    search_results = gr.Dataframe()
+                    search_button.click(fn=search_query, inputs=[search_input,settings_state], outputs=search_results)
+
+                with gr.Column(scale=0):
+                    gr.Textbox(
+                    """
+                    Total Objects:100
+                    """)
 
         with gr.TabItem("Upload"):
-            file_input = gr.File(label="3D File")
-            description_input = gr.Textbox(label="Description")
-            screenshot_input = gr.File(label="Screenshot (optional)")
-            upload_button = gr.Button("Upload")
-            upload_result = gr.Textbox(label="Result")
-            upload_button.click(fn=upload_file, inputs=[file_input, description_input, screenshot_input],
-                                outputs=upload_result)
+            with gr.Row():
+                file_input = gr.File(label="3D File")
+                description_input = gr.Textbox(label="Description")
+                screenshot_input = gr.File(label="Screenshot (optional)")
+                upload_button = gr.Button("Upload")
+                upload_result = gr.Textbox(label="Result")
+                upload_button.click(fn=upload_file, inputs=[file_input, description_input, screenshot_input],
+                                    outputs=upload_result)
 
         with gr.TabItem("Browse"):
-            browse_button = gr.Button("Browse")
-            browse_results = gr.Dataframe()
-            browse_button.click(fn=browse_objects, outputs=browse_results)
+            with gr.Row():
+                browse_button = gr.Button("Browse")
+                browse_results = gr.Dataframe()
+                browse_button.click(fn=browse_objects, outputs=browse_results)
 
         with gr.TabItem("Settings"):
             with gr.Row():
