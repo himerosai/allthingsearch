@@ -5,19 +5,40 @@ import elasticsearch
 import boto3
 import pandas as pd
 
+from esutils import get_index_fields,count_docs
+from minioutils import calculate_bucket_size
+
+from minio import Minio
+
+import math
+
+def convert_size(size_bytes):
+   if size_bytes == 0:
+       return "0B"
+   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+   i = int(math.floor(math.log(size_bytes, 1024)))
+   p = math.pow(1024, i)
+   s = round(size_bytes / p, 2)
+   return "%s %s" % (s, size_name[i])
+
 # Function to handle search queries
-def search_query(query,settings):
+def search_query(query,settings,size):
     INDEX_NAME = "objaverse"
     # Initialize ElasticSearch client
     es = Elasticsearch([settings['es_url']], verify_certs=False, basic_auth=(settings['es_user'],settings['es_pass']))
-    default_cols = ["uri","uid","name","publishedAt","user","description","license"]
-    res = es.search(index=INDEX_NAME, body={"query": {"match": {"description": query}}})
+
+    if settings['fields'] == []:
+        default_cols = ["uri","uid","name","publishedAt","user","description","license"]
+    else:
+        default_cols = settings['fields']
+
+    res = es.search(index=INDEX_NAME, body={"query": {"query_string": {"query":query,"fields":default_cols}}},size=size)
     hits = res['hits']['hits']
     data = []
     for hit in hits:
         source = hit['_source']
 
-        sub_obj = { field:source[field] for field in default_cols}
+        sub_obj = { field:source[field] for field in default_cols if field in source}
 
         data.append(sub_obj)
 
@@ -87,12 +108,16 @@ def save_settings(es_url,es_user,es_pass,minio_url,minio_access,minio_secret,set
     settings_state['es_pass'] = es_pass
 
     settings_state['minio_url'] = minio_url
-    settings_state['minio_access'] = minio_access
+    settings_state['minio_key'] = minio_access
     settings_state['minio_secret'] = minio_secret
+
 
     with open("config.env","w") as file:
         for key,val in settings_state.items():
-            file.write(f"{key}={val}\n".format(key,val))
+            if key == "fields" or type(val)==list:
+                file.write(f"{key}={val}\n".format(key,"|".join(val)))
+            else:
+                file.write(f"{key}={val}\n".format(key,val))
 
     try:
         es = Elasticsearch(
@@ -112,40 +137,80 @@ def save_settings(es_url,es_user,es_pass,minio_url,minio_access,minio_secret,set
 
 from dotenv import dotenv_values
 
+def get_es(settings_state):
+
+    try:
+        # Initialize ElasticSearch client
+        es = Elasticsearch([settings['es_url']],
+                       verify_certs=False,
+                       basic_auth=(settings['es_user'],settings['es_pass']))
+        # Check if the connection is successful
+        return es
+    except elasticsearch.ConnectionError as e:
+        raise gr.Error(f"Error: {e}")    
+
+def get_minio(settings_state):
+
+    # Initialize Minio client
+
+    client = Minio(settings['minio_url'],
+                access_key=settings['minio_key'],
+                secret_key=settings['minio_secret'],
+                secure=False
+                )
+
+    return client
+
+def update_df(selectData,settings_state):
+    if type(selectData)==list:
+        settings_state["fields"]=selectData
+    return settings_state
+
 # Create Gradio interface
 with gr.Blocks() as demo:
     
     settings = dotenv_values("config.env")
+    settings['fields'] = settings['fields'].split("|")
     settings_state = gr.State(settings)
+
+
+    es = get_es(settings)
+    minio_client = get_minio(settings)
 
     with gr.Tabs():
         with gr.TabItem("Search"):
             with gr.Row():
-                with gr.Column(scale=0):
-                    gr.Markdown(
-                    """
-                    Fields:
-                    * A
-                    * B
-                    """)
                 with gr.Column(scale=1):
-                    search_input = gr.Textbox(label="Search Query")
-                    search_button = gr.Button("Search")
-                    search_results = gr.Dataframe()
-                    search_button.click(fn=search_query, inputs=[search_input,settings_state], outputs=search_results)
+                    # Dropdown for data options
+                    dropdown_fields = gr.Dropdown(
+                        choices=get_index_fields(es,settings['es_index']),
+                        multiselect=True,
+                        value=settings['fields'],
+                        label="Select Fields"
+                    )
 
-                with gr.Column(scale=0):
-                    gr.Textbox(
-                    """
-                    Total Objects:100
-                    """)
+                    dropdown_fields.select(fn=update_df,inputs=[dropdown_fields,settings_state],outputs=[settings_state])
+                with gr.Column(scale=4):
+                    search_input = gr.Textbox(label="Search Query")
+                    max_search = gr.Number(value=10,label="Max")
+                    search_button = gr.Button("Search")
+                    search_results = gr.Dataframe(headers=settings['fields'])
+                    search_button.click(fn=search_query, inputs=[search_input,settings_state,max_search], outputs=search_results)
+
+                with gr.Column(scale=1):
+                    gr.Number(value=count_docs(es,settings['es_index']),label="Total Objects",interactive=False)
+                    total_bytes = calculate_bucket_size(minio_client,settings['minio_bucket'])
+                    gr.Text(value=convert_size(total_bytes),label="Total",interactive=False)
 
         with gr.TabItem("Upload"):
             with gr.Row():
                 file_input = gr.File(label="3D File")
+                name_input = gr.Textbox(label="Name")
+                user_input = gr.Textbox(label="User")
                 description_input = gr.Textbox(label="Description")
-                screenshot_input = gr.File(label="Screenshot (optional)")
+                screenshot_input = gr.File(label="Renders")
                 upload_button = gr.Button("Upload")
+
                 upload_result = gr.Textbox(label="Result")
                 upload_button.click(fn=upload_file, inputs=[file_input, description_input, screenshot_input],
                                     outputs=upload_result)

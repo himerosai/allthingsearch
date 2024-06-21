@@ -20,7 +20,7 @@ settings = dotenv_values("config.env")
 parser = argparse.ArgumentParser(description='Load some test data')
 
 parser.add_argument("--source",metavar="-s",type=str,default="objaverse")
-parser.add_argument('--max', metavar='-m', type=int, help='max test objects',default=10)
+parser.add_argument('--max', metavar='-m', type=int, help='max test objects',default=100000)
 
 args = parser.parse_args()
 
