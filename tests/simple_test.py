@@ -4,6 +4,7 @@ from dotenv import dotenv_values
 
 settings = dotenv_values("config.env")
 
+BASE_PATH = "/media"
 class IndexObjectsCase(unittest.TestCase):
     def test_1(self):
         '''
@@ -14,6 +15,9 @@ class IndexObjectsCase(unittest.TestCase):
 
         import objaverse
         print(objaverse.__version__)
+        print("Base PATH %s " % objaverse.BASE_PATH)
+
+        # change it ....
 
     def test_2(self):
         '''
@@ -36,11 +40,14 @@ class IndexObjectsCase(unittest.TestCase):
         :return:
         '''
         import objaverse
-        from dotmap import DotMap
         from elasticsearch import Elasticsearch
         import elasticsearch
 
-        INDEX_NAME = "objaverse"
+        print("Base PATH %s " % objaverse.BASE_PATH)
+
+        objaverse.BASE_PATH = "/media/data/.objaverse"
+
+        INDEX_NAME = "test_index_2"
         # TODO: need to use the generated certificate during setup
         es = Elasticsearch([settings['es_url']], verify_certs=False,
                            basic_auth=(settings['es_user'], settings['es_pass']))
@@ -55,7 +62,6 @@ class IndexObjectsCase(unittest.TestCase):
 
         subfields = ["uri","uid","name","description","publishedAt","user.uid","user.username"]
         for uid in uids:
-            annotation = DotMap(annotations[uid])
 
             try:
                 res = es.index(index='objaverse', body=annotations[uid], refresh = 'true' )
@@ -70,7 +76,7 @@ class IndexObjectsCase(unittest.TestCase):
 
         # count objects
         res = es.count(index=INDEX_NAME)["count"]
-
+        
         self.assertEqual(res,max_obj)
         es.indices.delete(index=INDEX_NAME, ignore_unavailable=True)
 
@@ -81,14 +87,14 @@ class IndexObjectsCase(unittest.TestCase):
         :return:
         '''
         import objaverse
-        from dotmap import DotMap
-
         from minio import Minio
         import multiprocessing
 
+        objaverse.BASE_PATH = "/media/data/.objaverse"
+
         processes = multiprocessing.cpu_count()
 
-        INDEX_NAME = "objects"
+        INDEX_NAME = "testindex3"
 
         uids = objaverse.load_uids()
 

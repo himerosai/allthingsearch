@@ -31,7 +31,7 @@ args = parser.parse_args()
 
 if args.source == "objaverse":
     es = Elasticsearch([settings['es_url']], verify_certs=False,
-                        basic_auth=(settings['es_user'], settings['es_pass']))
+                        basic_auth=(settings['es_user'], settings['es_pass']), timeout=30)
 
     
 
@@ -48,7 +48,8 @@ if args.source == "objaverse":
         
         calculate_bucket_size(minio_client,settings['minio_bucket'])
 
-        sys.exit()
+        print("Beginning match all....")
+        es.indices.refresh(index=INDEX_NAME)
 
         res = es.search(index=INDEX_NAME, body={"query": {"match_all": {}},"size":args.max})
 
@@ -58,7 +59,7 @@ if args.source == "objaverse":
                 print(doc['_source']['description'])
                 print(doc['_source']['name'])
 
-
+        print("Match all done")
         
         res2 = es.search(index=INDEX_NAME, body={"query": {"query_string": {"query":"description:piece AND name:Chess"}},"size":args.max})
 

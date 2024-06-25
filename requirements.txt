@@ -4,3 +4,7 @@ boto3
 pandas
 Minio
 objaverse
+langchain-elasticsearch
+langchain-openai
+tiktoken
+langchain
