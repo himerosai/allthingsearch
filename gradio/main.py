@@ -137,19 +137,24 @@ def save_settings(es_url,es_user,es_pass,minio_url,minio_access,minio_secret,set
 
 from dotenv import dotenv_values
 
-def get_es(settings_state):
+def get_es(settings):
 
     try:
         # Initialize ElasticSearch client
         es = Elasticsearch([settings['es_url']],
                        verify_certs=False,
                        basic_auth=(settings['es_user'],settings['es_pass']))
-        # Check if the connection is successful
-        return es
+        # Create an empty index just in case
+        if es.indices.exists(index=settings['es_index']):
+            return es
+        else:
+            es.indices.create(index=settings['es_index'], ignore=400)
+            return es
+
     except elasticsearch.ConnectionError as e:
         raise gr.Error(f"Error: {e}")    
 
-def get_minio(settings_state):
+def get_minio(settings):
 
     # Initialize Minio client
 
@@ -158,6 +163,15 @@ def get_minio(settings_state):
                 secret_key=settings['minio_secret'],
                 secure=False
                 )
+
+    # Make the bucket if it doesn't exist.
+    found = client.bucket_exists(settings['minio_bucket'])
+    if not found:
+        client.make_bucket(settings['minio_bucket'])
+        print("Created bucket", settings['minio_bucket'])
+    else:
+        # TODO: delete the entire bucket also ...
+        print("Bucket", settings['minio_bucket'], "already exists")
 
     return client
 
@@ -172,7 +186,6 @@ with gr.Blocks() as demo:
     settings = dotenv_values("config.env")
     settings['fields'] = settings['fields'].split("|")
     settings_state = gr.State(settings)
-
 
     es = get_es(settings)
     minio_client = get_minio(settings)
@@ -200,7 +213,10 @@ with gr.Blocks() as demo:
                 with gr.Column(scale=1):
                     gr.Number(value=count_docs(es,settings['es_index']),label="Total Objects",interactive=False)
                     total_bytes = calculate_bucket_size(minio_client,settings['minio_bucket'])
-                    gr.Text(value=convert_size(total_bytes),label="Total",interactive=False)
+                    if total_bytes is None:
+                        gr.Text(value="buckt is empty", label="Total", interactive=False)
+                    else:
+                        gr.Text(value=convert_size(total_bytes),label="Total",interactive=False)
 
         with gr.TabItem("Upload"):
             with gr.Row():

@@ -2,8 +2,6 @@ from minio import Minio
 from minio.error import S3Error
 
 def calculate_bucket_size(minio_client, bucket_name):
-
-        
     try:
         # Initialize total size to 0
         total_size = 0

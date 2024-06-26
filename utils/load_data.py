@@ -20,7 +20,7 @@ settings = dotenv_values("config.env")
 parser = argparse.ArgumentParser(description='Load some test data')
 
 parser.add_argument("--source",metavar="-s",type=str,default="objaverse")
-parser.add_argument('--max', metavar='-m', type=int, help='max test objects',default=100000)
+parser.add_argument('--max', metavar='-m', type=int, help='max test objects',default=100)
 
 args = parser.parse_args()
 
@@ -45,7 +45,7 @@ if args.source == "objaverse":
     es = Elasticsearch([settings['es_url']], verify_certs=False,
                        basic_auth=(settings['es_user'], settings['es_pass']))
 
-    es.indices.delete(index=INDEX_NAME, ignore_unavailable=True)
+    es.indices.delete(index=INDEX_NAME, ignore=[400,404])
 
     mappings = {
         "properties": {
