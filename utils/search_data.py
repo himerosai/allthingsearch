@@ -25,13 +25,13 @@ parser.add_argument("--source",metavar="-s",type=str,default="objaverse")
 parser.add_argument("--operation",metavar="-o",type=str,default="fields")
 parser.add_argument("--field",metavar="-f",type=str,default="description")
 parser.add_argument("--value",metavar="-v",type=str,default="objaverse")
-parser.add_argument('--max', metavar='-m', type=int, help='max test objects',default=10)
+parser.add_argument('--max', metavar='-m', type=int, help='max test objects',default=1)
 
 args = parser.parse_args()
 
 if args.source == "objaverse":
     es = Elasticsearch([settings['es_url']], verify_certs=False,
-                        basic_auth=(settings['es_user'], settings['es_pass']), timeout=30)
+                        basic_auth=(settings['es_user'], settings['es_pass']), request_timeout=30)
 
     
 
@@ -58,6 +58,8 @@ if args.source == "objaverse":
             if doc['_source']['description']:
                 print(doc['_source']['description'])
                 print(doc['_source']['name'])
+                print(doc['_source']['publishedAt'])
+                print(doc['_source']['uid'])
 
         print("Match all done")
         
@@ -67,6 +69,8 @@ if args.source == "objaverse":
             print(f"{doc['_id']}, {doc['_source'].keys()}")
             if doc['_source']['description']:
                 print(doc['_source']['description'])
+                print(doc['_source']['publishedAt'])
+                print(doc['_source']['uid'])
 
     if args.operation == "fields":
         fields = get_index_fields(es,INDEX_NAME)

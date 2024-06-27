@@ -8,3 +8,6 @@ langchain-elasticsearch
 langchain-openai
 tiktoken
 langchain
+celery[redis]
+salesforce-lavis
+flower

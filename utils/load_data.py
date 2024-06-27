@@ -27,6 +27,8 @@ args = parser.parse_args()
 if args.source == "objaverse":
     print("Loading ")
 
+    objaverse.BASE_PATH = "/media/data/.objaverse"
+
     uids = objaverse.load_uids()
     random_object_uids = random.sample(uids, args.max)
     annotations = objaverse.load_annotations()

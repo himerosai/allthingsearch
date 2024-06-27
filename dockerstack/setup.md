@@ -1,10 +1,15 @@
 
-Before you run docker:
+# Preparing docker
+
+
+Before you run docker you have to make some tweaks for ElasticSearch and REDIS cache.
 
 ```
 grep vm.max_map_count /etc/sysctl.conf
 vm.max_map_count=262144
 sysctl -w vm.max_map_count=262144
+vm.overcommit_memory = 1
+sysctl vm.overcommit_memory=1
 ```
 
 To permanently change the value for the vm.max_map_count setting, update the value in /etc/sysctl.conf.

@@ -93,6 +93,14 @@ services:
       timeout: 10s
       retries: 120
 
+  cache:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
+    volumes: 
+      - redis_data:/data
 
   minio:
     image: docker.io/bitnami/minio:latest
@@ -137,7 +145,8 @@ volumes:
     driver: local
   minio_data:
     driver: local
-
+  redis_data:
+    driver: local
 networks:
   default:
     name: elastic

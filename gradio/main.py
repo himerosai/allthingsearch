@@ -12,6 +12,11 @@ from minio import Minio
 
 import math
 
+from celery import Celery
+import urllib3
+
+urllib3.disable_warnings()
+
 def convert_size(size_bytes):
    if size_bytes == 0:
        return "0B"
@@ -32,7 +37,7 @@ def search_query(query,settings,size):
     else:
         default_cols = settings['fields']
 
-    res = es.search(index=INDEX_NAME, body={"query": {"query_string": {"query":query,"fields":default_cols}}},size=size)
+    res = es.search(index=INDEX_NAME, body={"query": {"query_string": {"query":query,"fields":default_cols}},"size":size})
     hits = res['hits']['hits']
     data = []
     for hit in hits:
@@ -50,34 +55,55 @@ def search_query(query,settings,size):
     return df
 
 # Function to handle file uploads
-def upload_file(file, description, screenshot,settings):
+def upload_file(file_input, user_input,name_input,description_input, manual_input,settings):
+    import pathlib
+    import hashlib
+    import datetime
+    import os
 
-    # Initialize Minio client
-    minio_client = boto3.client(
-        's3',
-        endpoint_url=settings['minio_url'],
-        aws_access_key_id=settings['minio_key'],
-        aws_secret_access_key=settings['minio_secret'],
-        region_name='us-east-1',
-    )
+    d = datetime.datetime.now()
 
-    object_id = file.name
-    minio_client.put_object('3d-files', object_id, file, file.size)
+    es_client = get_es(settings)
+    minio_client = get_minio(settings)
 
-    # Upload screenshot if provided
-    screenshot_url = ""
-    if screenshot:
-        screenshot_id = f"{object_id}_screenshot"
-        minio_client.put_object('screenshots', screenshot_id, screenshot, screenshot.size)
-        screenshot_url = f"http://localhost:9000/screenshots/{screenshot_id}"
+    if file_input and os.path.isfile(file_input.name):
+        path = file_input.name
+        print("Loading file from %s" % path)
+        try:
 
-    # Store metadata in ElasticSearch
-    es.index(index="3d_objects", body={
-        'object_id': object_id,
-        'description': description,
-        'image_url': screenshot_url
-    })
-    return "Upload successful!"
+            #lo cal utc ftime
+            tz = datetime.timezone.utc
+            ft = "%Y-%m-%dT%H:%M:%S"
+            t = datetime.datetime.now(tz=tz).strftime(ft)
+
+            upload_info ={"name":name_input,"user":{"username":user_input},"description":description_input,"publishedAt":t}
+            print("Upload info %s" % upload_info)
+
+            res = es_client.index(index=settings['es_index'], body=upload_info, refresh='true')
+
+            print("Added upload file object: %s" % res.body['_id'])
+
+            uid = hashlib.md5(open(path,'rb').read()).hexdigest()
+
+            ext = pathlib.Path(path).suffix
+    
+            print("Adding to Minio with uid %s" % uid)
+            # add into minio
+            resultio = minio_client.fput_object(
+                bucket_name=settings['minio_bucket'], 
+                object_name=uid, 
+                file_path=path,
+                metadata={"es_id" : res.body['_id'],"ext":ext,"status":"uploaded"}
+            )
+
+            info =  "created {0} object; etag: {1}, version-id: {2}".format(resultio.object_name, resultio.etag, resultio.version_id)
+            return info
+
+        except elasticsearch.ElasticsearchWarning as wan:
+            return str(wan)            
+        return "Upload successful!"
+    else:
+        return "No file provided"
 
 
 # Function to handle browsing
@@ -187,6 +213,16 @@ with gr.Blocks() as demo:
     settings['fields'] = settings['fields'].split("|")
     settings_state = gr.State(settings)
 
+    app = Celery('allthings', broker=settings['redis_url'])
+
+    app.conf.result_backend = settings['redis_url']
+
+
+    @app.task
+    def demo_start():
+        return 'Gradio App starting...'
+
+
     es = get_es(settings)
     minio_client = get_minio(settings)
 
@@ -222,13 +258,22 @@ with gr.Blocks() as demo:
             with gr.Row():
                 file_input = gr.File(label="3D File")
                 name_input = gr.Textbox(label="Name")
-                user_input = gr.Textbox(label="User")
+
                 description_input = gr.Textbox(label="Description")
-                screenshot_input = gr.File(label="Renders")
+                manual_input = gr.File(label="Renders")
+
+                user_input = gr.Dropdown(
+                    choices=["admin"],
+                    multiselect=False,
+                    value="admin",
+                    label="User"
+                )
+
                 upload_button = gr.Button("Upload")
 
                 upload_result = gr.Textbox(label="Result")
-                upload_button.click(fn=upload_file, inputs=[file_input, description_input, screenshot_input],
+
+                upload_button.click(fn=upload_file, inputs=[file_input, user_input,name_input,description_input, manual_input,settings_state],
                                     outputs=upload_result)
 
         with gr.TabItem("Browse"):
