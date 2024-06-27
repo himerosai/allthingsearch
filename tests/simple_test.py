@@ -74,6 +74,10 @@ class IndexObjectsCase(unittest.TestCase):
             except elasticsearch.ElasticsearchWarning as wan:
                 print(wan)
 
+        # refresh before counting
+
+        es.indices.refresh(index=INDEX_NAME)
+
         # count objects
         res = es.count(index=INDEX_NAME)["count"]
         
