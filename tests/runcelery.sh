@@ -1,0 +1,1 @@
+celery -A tasks.app flower --basic-auth=allthings:allthings

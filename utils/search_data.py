@@ -63,6 +63,8 @@ if args.source == "objaverse":
 
         print("Match all done")
         
+        print("Match lucene")
+
         res2 = es.search(index=INDEX_NAME, body={"query": {"query_string": {"query":"description:piece AND name:Chess"}},"size":args.max})
 
         for doc in res2['hits']['hits']:
