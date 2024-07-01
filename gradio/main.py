@@ -1,52 +1,47 @@
 import gradio as gr
 from elasticsearch import Elasticsearch
 import elasticsearch
-
-import boto3
 import pandas as pd
-
 from esutils import get_index_fields,count_docs
 from minioutils import calculate_bucket_size
-
 from minio import Minio
-
 import math
-
-from celery import Celery
 import urllib3
+
+urllib3.disable_warnings()
 
 from fastapi import FastAPI
 
 app = FastAPI()
 
+
 @app.get("/")
 def read_main():
     return {"message": "This is your main app"}
 
-
-urllib3.disable_warnings()
-
 def convert_size(size_bytes):
-   if size_bytes == 0:
-       return "0B"
-   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
-   i = int(math.floor(math.log(size_bytes, 1024)))
-   p = math.pow(1024, i)
-   s = round(size_bytes / p, 2)
-   return "%s %s" % (s, size_name[i])
+    if size_bytes == 0:
+        return "0B"
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return "%s %s" % (s, size_name[i])
+
 
 # Function to handle search queries
-def search_query(query,settings,size):
+def search_query(query, settings, size):
     INDEX_NAME = "objaverse"
     # Initialize ElasticSearch client
-    es = Elasticsearch([settings['es_url']], verify_certs=False, basic_auth=(settings['es_user'],settings['es_pass']))
+    es = Elasticsearch([settings['es_url']], verify_certs=False, basic_auth=(settings['es_user'], settings['es_pass']))
 
     if settings['fields'] == []:
-        default_cols = ["uri","uid","name","publishedAt","user","description","license"]
+        default_cols = ["uri", "uid", "name", "publishedAt", "user", "description", "license"]
     else:
         default_cols = settings['fields']
 
-    res = es.search(index=INDEX_NAME, body={"query": {"query_string": {"query":query,"fields":default_cols}},"size":size})
+    res = es.search(index=INDEX_NAME,
+                    body={"query": {"query_string": {"query": query, "fields": default_cols}}, "size": size})
     hits = res['hits']['hits']
     data = []
     for hit in hits:
@@ -95,12 +90,12 @@ def upload_file(file_input, user_input,name_input,description_input, manual_inpu
             uid = hashlib.md5(open(path,'rb').read()).hexdigest()
 
             ext = pathlib.Path(path).suffix
-    
+
             print("Adding to Minio with uid %s" % uid)
             # add into minio
             resultio = minio_client.fput_object(
-                bucket_name=settings['minio_bucket'], 
-                object_name=uid, 
+                bucket_name=settings['minio_bucket'],
+                object_name=uid,
                 file_path=path,
                 metadata={"es_id" : res.body['_id'],"ext":ext,"status":"uploaded"}
             )
@@ -109,7 +104,7 @@ def upload_file(file_input, user_input,name_input,description_input, manual_inpu
             return info
 
         except elasticsearch.ElasticsearchWarning as wan:
-            return str(wan)            
+            return str(wan)
         return "Upload successful!"
     else:
         return "No file provided"
@@ -216,11 +211,9 @@ def update_df(selectData,settings_state):
     return settings_state
 
 settings = dotenv_values("config.env")
-
 # Create Gradio interface
 with gr.Blocks() as demo:
-    
-    
+
     settings['fields'] = settings['fields'].split("|")
     settings_state = gr.State(settings)
 
