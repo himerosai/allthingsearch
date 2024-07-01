@@ -1,1 +1,1 @@
-celery -A tasks.app flower --basic-auth=allthings:allthings
+celery -A main.app flower --address='0.0.0.0' --port='5555' --basic-auth=allthings:allthings

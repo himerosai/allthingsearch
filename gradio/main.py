@@ -15,6 +15,15 @@ import math
 from celery import Celery
 import urllib3
 
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def read_main():
+    return {"message": "This is your main app"}
+
+
 urllib3.disable_warnings()
 
 def convert_size(size_bytes):
@@ -206,22 +215,14 @@ def update_df(selectData,settings_state):
         settings_state["fields"]=selectData
     return settings_state
 
+settings = dotenv_values("config.env")
+
 # Create Gradio interface
 with gr.Blocks() as demo:
     
-    settings = dotenv_values("config.env")
+    
     settings['fields'] = settings['fields'].split("|")
     settings_state = gr.State(settings)
-
-    app = Celery('allthings', broker=settings['redis_url'])
-
-    app.conf.result_backend = settings['redis_url']
-
-
-    @app.task
-    def demo_start():
-        return 'Gradio App starting...'
-
 
     es = get_es(settings)
     minio_client = get_minio(settings)
@@ -300,5 +301,11 @@ with gr.Blocks() as demo:
             save_button.click(fn=save_settings, inputs=[es_url,es_user,es_pass,minio_url,minio_access,minio_secret,settings_state],
                                 outputs=settings_state)
 
-# Launch the app
-demo.launch(share=True)
+# launch the flask application
+
+if bool(settings['fast_api']) == True:
+    print("Starting flask api")
+    app = gr.mount_gradio_app(app,demo,path="/main")
+else:
+    print("Starting gradio")
+    demo.launch(share=True)
