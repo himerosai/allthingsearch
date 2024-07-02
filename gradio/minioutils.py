@@ -1,6 +1,7 @@
 from minio import Minio
 from minio.error import S3Error
 
+
 def calculate_bucket_size(minio_client, bucket_name):
 
         
