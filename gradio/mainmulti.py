@@ -4,6 +4,7 @@ import elasticsearch
 import pandas as pd
 from esutils import get_index_fields,count_docs
 from minioutils import calculate_bucket_size
+from gcputils import predict_custom_trained_model_sample,get_image,download_image,image_to_base64
 from minio import Minio
 import math
 import urllib3
@@ -279,6 +280,49 @@ with gr.Blocks() as demo:
                 browse_results = gr.Dataframe()
                 browse_button.click(fn=browse_objects, outputs=browse_results)
 
+        with gr.TabItem("Caption"):
+            with gr.Row():
+
+                image_input = gr.Image(label="3d Image Render",type="filepath",sources=["upload","clipboard"])
+                object_input = gr.Text(label="Object ID")
+
+                caption = gr.Text(label="Captions")
+                caption_qa = gr.Text(label="QA captions")
+
+                gen_button = gr.Button("Generate Image Captions")
+                def gen_captions(image_input):
+                    LOCATION = settings["gcp_location"]
+                    ENDPOINT_ID = settings["endpoint_id"]
+                    ENDPOINT_VAQ_ID = settings["endpoint_vaq_id"]
+                    PROJECT_ID = settings["project_id"]
+                    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings["gcp_svc_json"]
+
+                    if image_input and os.path.isfile(image_input):
+                        print("Loading image from %s" % image_input)
+
+                        image = get_image(image_input)
+
+                        instances = [
+                            {"image": image_to_base64(image)},
+                        ]
+
+                        captions = predict_custom_trained_model_sample(PROJECT_ID, ENDPOINT_ID, instances, LOCATION)
+
+                        wqa_captions = "\n".join(captions)
+
+                        instances = [
+                            {"image": image_to_base64(image), "text": settings["prompt_text"]},
+                        ]
+
+                        vqa_captions = predict_custom_trained_model_sample(PROJECT_ID, ENDPOINT_VAQ_ID, instances, LOCATION)
+
+                        qa_captions = "\n".join(vqa_captions)
+
+
+                        return wqa_captions,qa_captions
+
+                gen_button.click(fn=gen_captions,inputs=[image_input],outputs=[caption,caption_qa])
+
         with gr.TabItem("Settings"):
             with gr.Row():
                 with gr.Column(scale=1):
@@ -288,9 +332,32 @@ with gr.Blocks() as demo:
                     es_pass = gr.Textbox(label="ES pass",value="changeme")
 
                 with gr.Column(scale=1):
-                    minio_url = gr.Textbox(label="Minio url",value="http://localhost:9000")
+                    minio_url = gr.Textbox(label="Minio host",value="localhost:9000")
                     minio_access = gr.Textbox(label="Minio access key",value="AKIAIOSFODNN7EXAMPLE")
                     minio_secret = gr.Textbox(label="Minio secret key",value="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+
+            with gr.Row():
+                with gr.Column(scale=1):
+
+                    gcp_svc_json = gr.Textbox(label="Google Application Credentials",value="service-account-vision.json")
+                    gcp_location = gr.Textbox(label="Location",value="us-central-1")
+                    project_id = gr.Textbox(label="Project Caption ID", value="Your project id")
+
+                    endpoint_id = gr.Textbox(label="Endpoint Caption ID",value="Your endpoint id")
+                    endpoint_vqa_id = gr.Textbox(label="Endpoint VQA ID",value="Your endpoint id")
+
+                with gr.Column(scale=1):
+                    model_name = gr.Dropdown(choices=["Salesforce/blip2-opt-2.7b"],label="Model Name",value="Salesforce/blip2-opt-2.7b")
+
+                    num_captions = gr.Number(label="Total camptions",value=5)
+
+                    qa_on = gr.Checkbox(label="Use QA?",value=True,interactive=True)
+                    nucleus_sampling = gr.Checkbox(label="Nucleus Sampling?", value=True, interactive=True)
+
+                    prompt_text = gr.Text(label="Prompt",value="Question: what object is in this image? Answer:")
+                    prompt_long_text = gr.Text(label="Prompt", value="Question: what is the structure and geometry of this %s?")
+
+
 
             save_button = gr.Button("Save...")
 
